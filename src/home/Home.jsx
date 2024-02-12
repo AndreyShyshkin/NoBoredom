@@ -57,7 +57,7 @@ function Home() {
 				Не знаете чем заняться в компании? Зарегистрируйтесь для общего
 				придумывания идеи.
 			</div>
-			<Link to={`/functions/group?=${randomString}`}>Создать группу</Link>
+			<Link to={`/group?id=${randomString}`}>Создать группу</Link>
 		</>
 	)
 }

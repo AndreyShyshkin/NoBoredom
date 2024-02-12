@@ -7,6 +7,8 @@ import { initializeApp } from 'firebase/app'
 const firebaseConfig = {
 	apiKey: 'AIzaSyA70LHn9Q8Rub401YVoGeJro9NT6p8eqqs',
 	authDomain: 'noboredom-eaf1a.firebaseapp.com',
+	databaseURL:
+		'https://noboredom-eaf1a-default-rtdb.europe-west1.firebasedatabase.app',
 	projectId: 'noboredom-eaf1a',
 	storageBucket: 'noboredom-eaf1a.appspot.com',
 	messagingSenderId: '574813042916',

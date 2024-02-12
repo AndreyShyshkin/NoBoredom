@@ -1,7 +1,10 @@
-import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth'
+import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { getDatabase, onValue, ref, remove, set } from 'firebase/database'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import '../../firebase.config'
+import Friend from './Friend'
+import addFriend from './addFriend'
 const auth = getAuth()
 const db = getDatabase()
 let $_GET = {}
@@ -9,7 +12,6 @@ let $_GET = {}
 function Group() {
 	const [user, setUser] = useState(null)
 	const [groupMembers, setGroupMembers] = useState([])
-	const userRef = useRef(null)
 
 	function GET() {
 		let url = new URL(window.location.href)
@@ -26,10 +28,8 @@ function Group() {
 		const unsubscribe = onAuthStateChanged(auth, user => {
 			if (user) {
 				setUser(user)
-				userRef.current = user
 			} else {
 				setUser(null)
-				userRef.current = null
 			}
 		})
 
@@ -37,19 +37,14 @@ function Group() {
 
 		return () => {
 			unsubscribe()
-			window.removeEventListener('beforeunload', handleBeforeUnload)
 		}
-	}, [])
+	}, [user])
 
 	async function handleBeforeUnload(event) {
 		event.preventDefault() // Отменяем закрытие вкладки
-		const user = userRef.current
 		if (user) {
 			try {
-				event.returnValue = '' // Устанавливаем пустое значение для возврата строки
-				await removeFromGroup(user) // Ждем завершения операции удаления
-				window.removeEventListener('beforeunload', handleBeforeUnload) // Удаляем обработчик события
-				window.close() // Закрываем вкладку
+				await removeFromGroup(user)
 			} catch (error) {
 				console.error('Ошибка удаления из группы:', error)
 			}
@@ -58,30 +53,25 @@ function Group() {
 
 	function removeFromGroup(user) {
 		return new Promise((resolve, reject) => {
-			const groupRef = ref(db, 'groups/' + groupID)
-			onValue(groupRef, snapshot => {
-				const data = snapshot.val()
-				if (data) {
-					const members = Object.values(data)
-					if (members.length === 1 && members[0] === user.uid) {
-						remove(ref(db, 'groups/' + groupID))
-							.then(() => resolve()) // Успешно удалено
-							.catch(error => reject(error)) // Обработка ошибки
-					} else {
-						const updatedMembers = members.filter(member => member !== user.uid)
-						set(groupRef, updatedMembers)
-							.then(() => resolve()) // Успешно удалено
-							.catch(error => reject(error)) // Обработка ошибки
-					}
-				}
-			})
+			const groupRef = ref(db, 'groups/' + groupID + '/' + user.uid)
+			remove(groupRef)
+				.then(() => resolve())
+				.catch(error => reject(error))
 		})
 	}
 
 	function joinGroup(user) {
-		// Присоединение пользователя к группе
-		set(ref(db, 'groups/' + groupID), {
-			userId: user.uid,
+		let name
+		if (!user.isAnonymous) {
+			name = user.displayName
+		} else {
+			name = 'anonymous'
+		}
+		set(ref(db, 'groups/' + groupID + '/' + user.uid), {
+			id: user.uid,
+			name: name,
+		}).catch(error => {
+			console.error('Ошибка при присоединении к группе:', error)
 		})
 	}
 
@@ -89,13 +79,12 @@ function Group() {
 		if (user) {
 			const groupRef = ref(db, 'groups/' + groupID)
 			onValue(groupRef, snapshot => {
-				// Use onValue instead of on
 				const data = snapshot.val()
 				if (data) {
-					const members = Object.values(data) // Convert object to array
+					const members = Object.values(data)
 					setGroupMembers(members)
 				} else {
-					setGroupMembers([]) // Set an empty array if no data
+					setGroupMembers([])
 				}
 			})
 		}
@@ -103,26 +92,39 @@ function Group() {
 
 	return (
 		<div>
+			<Friend />
 			{user ? (
 				<div>
-					<h2>Вы вошли в систему как {user.uid}</h2>
+					<h2>
+						Вы вошли в систему как{' '}
+						{!user.isAnonymous && user.displayName
+							? user.displayName
+							: 'anonymous'}
+					</h2>
 					<button onClick={() => joinGroup(user)}>
 						Присоединиться к группе
 					</button>
 					<button onClick={() => console.log(user)}>выйти</button>
 					<h3>Участники группы:</h3>
 					<ul>
-						{groupMembers.map(memberId => (
-							<li key={memberId}>{memberId}</li>
+						{groupMembers.map(member => (
+							<li key={member.id}>
+								<p>{member.name}</p>
+								{member.id != user.uid &&
+								member.name != 'anonymous' &&
+								!user.isAnonymous ? (
+									<button onClick={() => addFriend(member.id, member.name)}>
+										Добавить в друзей
+									</button>
+								) : null}
+							</li>
 						))}
 					</ul>
 				</div>
 			) : (
 				<div>
 					<h2>Пожалуйста, войдите в систему</h2>
-					<button onClick={() => signInAnonymously(auth)}>
-						Войти анонимно
-					</button>
+					<Link to={'/login'}>Login</Link>
 				</div>
 			)}
 		</div>

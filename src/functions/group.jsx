@@ -1,6 +1,6 @@
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { getDatabase, onValue, ref, remove, set } from 'firebase/database'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../../firebase.config'
 import Friend from './Friend'
@@ -12,6 +12,8 @@ let $_GET = {}
 function Group() {
 	const [user, setUser] = useState(null)
 	const [groupMembers, setGroupMembers] = useState([])
+	const [userFriends, setUserFriends] = useState([])
+	const beforeStart = useRef()
 
 	function GET() {
 		let url = new URL(window.location.href)
@@ -41,7 +43,7 @@ function Group() {
 	}, [user])
 
 	async function handleBeforeUnload(event) {
-		event.preventDefault() // Отменяем закрытие вкладки
+		event.preventDefault()
 		if (user) {
 			try {
 				await removeFromGroup(user)
@@ -70,6 +72,7 @@ function Group() {
 		set(ref(db, 'groups/' + groupID + '/' + user.uid), {
 			id: user.uid,
 			name: name,
+			ready: 'not',
 		}).catch(error => {
 			console.error('Ошибка при присоединении к группе:', error)
 		})
@@ -78,6 +81,7 @@ function Group() {
 	useEffect(() => {
 		if (user) {
 			const groupRef = ref(db, 'groups/' + groupID)
+			const friendRef = ref(db, 'users/' + user.uid + '/friends')
 			onValue(groupRef, snapshot => {
 				const data = snapshot.val()
 				if (data) {
@@ -87,11 +91,42 @@ function Group() {
 					setGroupMembers([])
 				}
 			})
+			onValue(friendRef, snapshot => {
+				const data = snapshot.val()
+				if (data) {
+					const friends = Object.values(data)
+					setUserFriends(friends)
+				} else {
+					setUserFriends([])
+				}
+			})
 		}
 	}, [user])
 
+	function ready(user) {
+		const userRef = ref(db, `groups/${groupID}/${user.uid}`)
+		const member = groupMembers.find(member => member.id === user.uid)
+
+		if (member) {
+			const newStatus = member.ready === 'yes' ? 'not' : 'yes'
+			set(userRef, { ...member, ready: newStatus }).catch(error =>
+				console.error('Ошибка при обновлении статуса пользователя:', error)
+			)
+		}
+	}
+
+	useEffect(() => {
+		if (user) {
+			const allUsersReady = groupMembers.every(member => member.ready === 'yes')
+			if (allUsersReady && groupMembers.length >= 2) {
+				// Изменение условия проверки
+				beforeStart.current.style.display = 'none'
+			}
+		}
+	}, [user, groupMembers])
+
 	return (
-		<div>
+		<div ref={beforeStart}>
 			<Friend />
 			{user ? (
 				<div>
@@ -104,22 +139,39 @@ function Group() {
 					<button onClick={() => joinGroup(user)}>
 						Присоединиться к группе
 					</button>
-					<button onClick={() => console.log(user)}>выйти</button>
+					{groupMembers.map(member =>
+						member.id === user.uid ? (
+							<button key={member.id} onClick={() => removeFromGroup(user)}>
+								выйти
+							</button>
+						) : null
+					)}
 					<h3>Участники группы:</h3>
 					<ul>
-						{groupMembers.map(member => (
-							<li key={member.id}>
-								<p>{member.name}</p>
-								{member.id != user.uid &&
-								member.name != 'anonymous' &&
-								!user.isAnonymous ? (
-									<button onClick={() => addFriend(member.id, member.name)}>
-										Добавить в друзей
-									</button>
-								) : null}
-							</li>
-						))}
+						<ul>
+							{groupMembers.map(member => (
+								<li key={member.id}>
+									<p>{member.name}</p>
+									<p>Ready: {member.ready}</p>
+									{userFriends.some(friend => friend.id !== member.id) &&
+									member.id !== user.uid &&
+									member.name !== 'anonymous' &&
+									!user.isAnonymous ? (
+										<button onClick={() => addFriend(member.id, member.name)}>
+											Добавить в друзья
+										</button>
+									) : null}
+								</li>
+							))}
+						</ul>
 					</ul>
+					{groupMembers.map(member =>
+						member.id === user.uid && groupMembers.length >= 2 ? (
+							<button key={member.id} onClick={() => ready(user)}>
+								{member.ready === 'yes' ? 'Not ready' : 'Ready'}
+							</button>
+						) : null
+					)}
 				</div>
 			) : (
 				<div>

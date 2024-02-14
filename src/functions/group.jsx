@@ -8,12 +8,17 @@ import addFriend from './addFriend'
 const auth = getAuth()
 const db = getDatabase()
 let $_GET = {}
+let onGame = false
 
 function Group() {
 	const [user, setUser] = useState(null)
+	const [data, setData] = useState(null)
 	const [groupMembers, setGroupMembers] = useState([])
 	const [userFriends, setUserFriends] = useState([])
 	const beforeStart = useRef()
+	const Start = useRef()
+	const goToMatch = useRef()
+	const startBtn = useRef()
 
 	function GET() {
 		let url = new URL(window.location.href)
@@ -44,13 +49,15 @@ function Group() {
 
 	async function handleBeforeUnload(event) {
 		event.preventDefault()
-		if (user) {
-			try {
-				await removeFromGroup(user)
-			} catch (error) {
-				console.error('Ошибка удаления из группы:', error)
+		window.addEventListener('unload', async function () {
+			if (user) {
+				try {
+					await removeFromGroup(user)
+				} catch (error) {
+					console.error('Ошибка удаления из группы:', error)
+				}
 			}
-		}
+		})
 	}
 
 	function removeFromGroup(user) {
@@ -73,6 +80,8 @@ function Group() {
 			id: user.uid,
 			name: name,
 			ready: 'not',
+			type: '',
+			match: '',
 		}).catch(error => {
 			console.error('Ошибка при присоединении к группе:', error)
 		})
@@ -106,7 +115,6 @@ function Group() {
 	function ready(user) {
 		const userRef = ref(db, `groups/${groupID}/${user.uid}`)
 		const member = groupMembers.find(member => member.id === user.uid)
-
 		if (member) {
 			const newStatus = member.ready === 'yes' ? 'not' : 'yes'
 			set(userRef, { ...member, ready: newStatus }).catch(error =>
@@ -118,67 +126,167 @@ function Group() {
 	useEffect(() => {
 		if (user) {
 			const allUsersReady = groupMembers.every(member => member.ready === 'yes')
+			const allUsersSameType = groupMembers.every(
+				member => member.type == groupMembers[0].type && member.type != ''
+			)
+			if (allUsersSameType && groupMembers.length != 0 && onGame !== true) {
+				console.log('all users same type')
+				game()
+			}
 			if (allUsersReady && groupMembers.length >= 2) {
-				// Изменение условия проверки
 				beforeStart.current.style.display = 'none'
+				Start.current.style.display = 'block'
 			}
 		}
 	}, [user, groupMembers])
 
+	function start(type) {
+		const userRef = ref(db, `groups/${groupID}/${user.uid}`)
+		const member = groupMembers.find(member => member.id === user.uid)
+
+		if (member) {
+			set(userRef, { ...member, type: type }).catch(error =>
+				console.error('Ошибка при обновлении статуса пользователя:', error)
+			)
+		}
+	}
+
+	function game() {
+		onGame = true
+		startBtn.current.style.display = 'none'
+		goToMatch.current.style.display = 'block'
+
+		const fetchDataPromises = groupMembers.map(member => {
+			let url = '//www.boredapi.com/api/activity/'
+			if (member.type !== 'random') {
+				url = url + '?type=' + member.type
+			}
+			return fetch(url)
+				.then(response => {
+					if (
+						!response.ok ||
+						!response.headers.get('content-type')?.includes('application/json')
+					) {
+						throw new Error('Failed to get JSON')
+					}
+					return response.json()
+				})
+				.catch(fetchError => {
+					console.error(fetchError)
+				})
+		})
+
+		Promise.all(fetchDataPromises)
+			.then(results => {
+				// Combine all results into one
+				const combinedData = results.reduce(
+					(acc, data) => {
+						acc.activity += data.activity + ' '
+						return acc
+					},
+					{ activity: '' }
+				)
+
+				// Set the combined data once
+				setData(combinedData)
+			})
+			.catch(error => {
+				console.error(error)
+			})
+	}
+
+	function matchPlus(userId) {
+		const userRef = ref(db, `groups/${groupID}/${userId}`)
+		const member = groupMembers.find(member => member.id === userId)
+		if (member) {
+			set(userRef, {
+				...member,
+				match: member.match + JSON.stringify(data.activity),
+			})
+				.then(game())
+				.catch(error =>
+					console.error('Ошибка при обновлении статуса пользователя:', error)
+				)
+		}
+	}
+
 	return (
-		<div ref={beforeStart}>
+		<div>
 			<Friend />
-			{user ? (
-				<div>
-					<h2>
-						Вы вошли в систему как{' '}
-						{!user.isAnonymous && user.displayName
-							? user.displayName
-							: 'anonymous'}
-					</h2>
-					<button onClick={() => joinGroup(user)}>
-						Присоединиться к группе
-					</button>
-					{groupMembers.map(member =>
-						member.id === user.uid ? (
-							<button key={member.id} onClick={() => removeFromGroup(user)}>
-								выйти
-							</button>
-						) : null
-					)}
-					<h3>Участники группы:</h3>
-					<ul>
+			<div ref={beforeStart}>
+				{user ? (
+					<div>
+						<h2>
+							Вы вошли в систему как{' '}
+							{!user.isAnonymous && user.displayName
+								? user.displayName
+								: 'anonymous'}
+						</h2>
+						<button onClick={() => joinGroup(user)}>
+							Присоединиться к группе
+						</button>
+						{groupMembers.map(member =>
+							member.id === user.uid ? (
+								<button key={member.id} onClick={() => removeFromGroup(user)}>
+									выйти
+								</button>
+							) : null
+						)}
+						<h3>Участники группы:</h3>
 						<ul>
-							{groupMembers.map(member => (
-								<li key={member.id}>
-									<p>{member.name}</p>
-									<p>Ready: {member.ready}</p>
-									{userFriends.some(friend => friend.id !== member.id) &&
-									member.id !== user.uid &&
-									member.name !== 'anonymous' &&
-									!user.isAnonymous ? (
-										<button onClick={() => addFriend(member.id, member.name)}>
-											Добавить в друзья
-										</button>
-									) : null}
-								</li>
-							))}
+							<ul>
+								{groupMembers.map(member => (
+									<li key={member.id}>
+										<p>{member.name}</p>
+										<p>Ready: {member.ready}</p>
+										{userFriends.some(friend => friend.id !== member.id) &&
+										member.id !== user.uid &&
+										member.name !== 'anonymous' &&
+										!user.isAnonymous ? (
+											<button onClick={() => addFriend(member.id, member.name)}>
+												Добавить в друзья
+											</button>
+										) : null}
+									</li>
+								))}
+							</ul>
 						</ul>
-					</ul>
-					{groupMembers.map(member =>
-						member.id === user.uid && groupMembers.length >= 2 ? (
-							<button key={member.id} onClick={() => ready(user)}>
-								{member.ready === 'yes' ? 'Not ready' : 'Ready'}
-							</button>
-						) : null
-					)}
+						{groupMembers.map(member =>
+							member.id === user.uid && groupMembers.length >= 2 ? (
+								<button key={member.id} onClick={() => ready(user)}>
+									{member.ready === 'yes' ? 'Not ready' : 'Ready'}
+								</button>
+							) : null
+						)}
+					</div>
+				) : (
+					<div>
+						<h2>Пожалуйста, войдите в систему</h2>
+						<Link to={'/login'}>Login</Link>
+					</div>
+				)}
+			</div>
+			<div ref={Start} style={{ display: 'none' }}>
+				<div ref={startBtn} style={{ display: 'block' }}>
+					<button onClick={() => start('random')}>Random</button>
+					<button onClick={() => start('education')}>Education</button>
+					<button onClick={() => start('recreational')}>Recreational</button>
+					<button onClick={() => start('social')}>Social</button>
+					<button onClick={() => start('diy')}>DIY</button>
+					<button onClick={() => start('charity')}>Charity</button>
+					<button onClick={() => start('cooking')}>Cooking</button>
+					<button onClick={() => start('relaxation')}>Relaxation</button>
+					<button onClick={() => start('music')}>Music</button>
+					<button onClick={() => start('busywork')}>Busywork</button>
 				</div>
-			) : (
 				<div>
-					<h2>Пожалуйста, войдите в систему</h2>
-					<Link to={'/login'}>Login</Link>
+					{data ? JSON.stringify(data.activity).replace(/['"]+/g, '') : null}
 				</div>
-			)}
+				<div ref={goToMatch} style={{ display: 'none' }}>
+					<button onClick={() => matchPlus(user.uid)}>+</button>
+					<button onClick={() => game()}>-</button>
+				</div>
+			</div>
 		</div>
 	)
 }

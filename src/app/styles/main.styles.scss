@@ -1,0 +1,16 @@
+$dark-primary-color: #303f9f;
+
+body {
+	margin: 0;
+	padding: 0;
+	background-color: $dark-primary-color;
+}
+
+#root {
+	display: flex;
+}
+
+.container {
+	width: 1440px;
+	margin: 0 auto;
+}

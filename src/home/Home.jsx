@@ -46,7 +46,7 @@ function Home() {
 
 	return (
 		<>
-			<div className='container'>
+			<div>
 				<h1>NoBoredom</h1>
 				<h2>Нечем заняться?</h2>
 				<p>Займитесь:</p>

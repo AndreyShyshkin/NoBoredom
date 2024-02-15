@@ -82,6 +82,7 @@ function Group() {
 			ready: 'not',
 			type: '',
 			match: '',
+			matched: 'false',
 		}).catch(error => {
 			console.error('Ошибка при присоединении к группе:', error)
 		})
@@ -129,13 +130,21 @@ function Group() {
 			const allUsersSameType = groupMembers.every(
 				member => member.type == groupMembers[0].type && member.type != ''
 			)
-			if (allUsersSameType && groupMembers.length != 0 && onGame !== true) {
-				console.log('all users same type')
+			if (allUsersSameType && groupMembers.length != 0 && onGame === false) {
+				onGame = true
 				game()
 			}
 			if (allUsersReady && groupMembers.length >= 2) {
 				beforeStart.current.style.display = 'none'
 				Start.current.style.display = 'block'
+			}
+			if (groupMembers.length > 0) {
+				const isAnyUserMatched = groupMembers.some(
+					member => member.matched === true
+				)
+				if (isAnyUserMatched) {
+					console.log('Хотя бы у одного пользователя matched установлен в true')
+				}
 			}
 		}
 	}, [user, groupMembers])
@@ -152,7 +161,6 @@ function Group() {
 	}
 
 	function game() {
-		onGame = true
 		startBtn.current.style.display = 'none'
 		goToMatch.current.style.display = 'block'
 
@@ -178,11 +186,9 @@ function Group() {
 
 		Promise.all(fetchDataPromises)
 			.then(results => {
-				// Combine all results into one
 				const combinedData = results.reduce(
 					(acc, data) => {
-						acc.activity += data.activity + ' '
-						return acc
+						return data
 					},
 					{ activity: '' }
 				)
@@ -193,6 +199,22 @@ function Group() {
 			.catch(error => {
 				console.error(error)
 			})
+
+		const matched = groupMembers.some(member => {
+			return (
+				member.match && member.match.includes(JSON.stringify(data.activity))
+			)
+		})
+
+		if (matched) {
+			const userRef = ref(db, `groups/${groupID}/${user.uid}`)
+			const member = groupMembers.find(member => member.id === user.uid)
+			if (member) {
+				set(userRef, { ...member, matched: true }).catch(error =>
+					console.error('Ошибка при обновлении статуса пользователя:', error)
+				)
+			}
+		}
 	}
 
 	function matchPlus(userId) {

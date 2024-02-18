@@ -13,6 +13,7 @@ let onGame = false
 function Group() {
 	const [user, setUser] = useState(null)
 	const [data, setData] = useState(null)
+	const [matched, setMatched] = useState(null)
 	const [groupMembers, setGroupMembers] = useState([])
 	const [userFriends, setUserFriends] = useState([])
 	const beforeStart = useRef()
@@ -128,26 +129,31 @@ function Group() {
 		if (user) {
 			const allUsersReady = groupMembers.every(member => member.ready === 'yes')
 			const allUsersSameType = groupMembers.every(
-				member => member.type == groupMembers[0].type && member.type != ''
+				member => member.type == groupMembers[0].type && member.type !== ''
 			)
-			if (allUsersSameType && groupMembers.length != 0 && onGame === false) {
+
+			if (allUsersSameType && groupMembers.length !== 0 && !onGame) {
 				onGame = true
 				game()
 			}
+
 			if (allUsersReady && groupMembers.length >= 2) {
 				beforeStart.current.style.display = 'none'
 				Start.current.style.display = 'block'
 			}
-			if (groupMembers.length > 0) {
-				const isAnyUserMatched = groupMembers.some(
-					member => member.matched === true
-				)
-				if (isAnyUserMatched) {
-					console.log('Хотя бы у одного пользователя matched установлен в true')
-				}
+
+			const matchedUsers = groupMembers.filter(
+				member => member.matched !== 'false'
+			)
+
+			if (matchedUsers.length > 0) {
+				matchedUsers.forEach(member => {
+					console.log(`${member.name}: ${member.matched}`)
+					setMatched(member.matched) // Update matched using setMatched
+				})
 			}
 		}
-	}, [user, groupMembers])
+	}, [user, groupMembers, matched])
 
 	function start(type) {
 		const userRef = ref(db, `groups/${groupID}/${user.uid}`)
@@ -195,26 +201,28 @@ function Group() {
 
 				// Set the combined data once
 				setData(combinedData)
+
+				// Check for matches
+				const matchedUsers = groupMembers.filter(member => {
+					return (
+						member.match &&
+						member.match.split(';').includes(JSON.stringify(data.activity))
+					)
+				})
+
+				matchedUsers.forEach(matchedUser => {
+					const userRef = ref(db, `groups/${groupID}/${matchedUser.id}`)
+					set(userRef, {
+						...matchedUser,
+						matched: JSON.stringify(data.activity),
+					}).catch(error =>
+						console.error('Ошибка при обновлении статуса пользователя:', error)
+					)
+				})
 			})
 			.catch(error => {
 				console.error(error)
 			})
-
-		const matched = groupMembers.some(member => {
-			return (
-				member.match && member.match.includes(JSON.stringify(data.activity))
-			)
-		})
-
-		if (matched) {
-			const userRef = ref(db, `groups/${groupID}/${user.uid}`)
-			const member = groupMembers.find(member => member.id === user.uid)
-			if (member) {
-				set(userRef, { ...member, matched: true }).catch(error =>
-					console.error('Ошибка при обновлении статуса пользователя:', error)
-				)
-			}
-		}
 	}
 
 	function matchPlus(userId) {
@@ -223,9 +231,11 @@ function Group() {
 		if (member) {
 			set(userRef, {
 				...member,
-				match: member.match + JSON.stringify(data.activity),
+				match:
+					(member.match ? member.match + ';' : '') +
+					JSON.stringify(data.activity),
 			})
-				.then(game())
+				.then(() => game()) // Вызов game() после обновления совпадений
 				.catch(error =>
 					console.error('Ошибка при обновлении статуса пользователя:', error)
 				)
@@ -307,6 +317,7 @@ function Group() {
 				<div ref={goToMatch} style={{ display: 'none' }}>
 					<button onClick={() => matchPlus(user.uid)}>+</button>
 					<button onClick={() => game()}>-</button>
+					{matched ? matched : null}
 				</div>
 			</div>
 		</div>

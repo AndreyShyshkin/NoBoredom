@@ -4,10 +4,14 @@ import '../../firebase.config'
 const db = getDatabase()
 const auth = getAuth()
 
-export default function addFriend(myId, friendId, friendName) {
+export default function inviteFriend(friendId, friendName) {
 	onAuthStateChanged(auth, user => {
 		if (user) {
-			set(ref(db, 'users/' + myId + '/friends/' + friendId), {
+			set(ref(db, 'users/' + friendId + '/inviteFromFriends/' + user.uid), {
+				id: user.uid,
+				name: user.displayName,
+			})
+			set(ref(db, 'users/' + user.uid + '/inviteToFriends/' + friendId), {
 				id: friendId,
 				name: friendName,
 			})

@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../../firebase.config'
 import Friend from './Friend'
-import addFriend from './addFriend'
+import GET from './GET'
+import inviteFriend from './inviteFriend'
+import JoinGroup from './joinGroup'
+import Notification from './notification'
 const auth = getAuth()
 const db = getDatabase()
-let $_GET = {}
 let onGame = false
 
 function Group() {
@@ -21,16 +23,7 @@ function Group() {
 	const goToMatch = useRef()
 	const startBtn = useRef()
 
-	function GET() {
-		let url = new URL(window.location.href)
-		let params = new URLSearchParams(url.search)
-		params.forEach((value, key) => {
-			$_GET[key] = value
-		})
-	}
-	GET()
-
-	const groupID = $_GET['id']
+	const groupID = GET('id')
 
 	useEffect(() => {
 		const unsubscribe = onAuthStateChanged(auth, user => {
@@ -149,7 +142,7 @@ function Group() {
 			if (matchedUsers.length > 0) {
 				matchedUsers.forEach(member => {
 					console.log(`${member.name}: ${member.matched}`)
-					setMatched(member.matched) // Update matched using setMatched
+					setMatched(member.matched)
 				})
 			}
 		}
@@ -245,6 +238,8 @@ function Group() {
 	return (
 		<div>
 			<Friend />
+			<JoinGroup />
+			<Notification />
 			<div ref={beforeStart}>
 				{user ? (
 					<div>
@@ -271,11 +266,15 @@ function Group() {
 									<li key={member.id}>
 										<p>{member.name}</p>
 										<p>Ready: {member.ready}</p>
-										{userFriends.some(friend => friend.id !== member.id) &&
+										{(userFriends.length > 0
+											? userFriends.some(friend => friend.id !== member.id)
+											: true) &&
 										member.id !== user.uid &&
 										member.name !== 'anonymous' &&
 										!user.isAnonymous ? (
-											<button onClick={() => addFriend(member.id, member.name)}>
+											<button
+												onClick={() => inviteFriend(member.id, member.name)}
+											>
 												Добавить в друзья
 											</button>
 										) : null}
@@ -317,8 +316,8 @@ function Group() {
 				<div ref={goToMatch} style={{ display: 'none' }}>
 					<button onClick={() => matchPlus(user.uid)}>+</button>
 					<button onClick={() => game()}>-</button>
-					{matched ? matched : null}
 				</div>
+				{matched ? matched.replace(/['"]+/g, '') : null}
 			</div>
 		</div>
 	)

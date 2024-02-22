@@ -27,21 +27,29 @@ const AppRouter = () => {
 
 	return (
 		<BrowserRouter>
-			<Link to='/'>NoBoredom</Link>
-			{user ? (
-				<span>
-					{!user.isAnonymous && user.displayName
-						? user.displayName
-						: 'anonymous'}
-				</span>
-			) : (
-				<Link to='/login'>login</Link>
-			)}
-			<Routes>
-				<Route path='/' element={<Home />} />
-				<Route path='/group' element={<Group />} />
-				<Route path='/login' element={<SingIn />} />
-			</Routes>
+			<nav>
+				<div>
+					<Link to='/'>NoBoredom</Link>
+				</div>
+				<div>
+					{user ? (
+						<span>
+							{!user.isAnonymous && user.displayName
+								? user.displayName
+								: 'anonymous'}
+						</span>
+					) : (
+						<Link to='/login'>login</Link>
+					)}
+				</div>
+			</nav>
+			<main>
+				<Routes>
+					<Route path='/' element={<Home />} />
+					<Route path='/group' element={<Group />} />
+					<Route path='/login' element={<SingIn />} />
+				</Routes>
+			</main>
 		</BrowserRouter>
 	)
 }

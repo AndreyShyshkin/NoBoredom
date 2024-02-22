@@ -1,8 +1,15 @@
-$dark-primary-color: #303f9f;
+$dark-primary-color: #342e61;
 
 body {
 	margin: 0;
 	padding: 0;
+	background-color: $dark-primary-color;
+	color: white;
+}
+
+a {
+	color: white;
+	text-decoration: none;
 }
 
 #root {
@@ -12,4 +19,13 @@ body {
 .container {
 	width: 1440px;
 	margin: 0 auto;
+}
+
+nav {
+	display: flex;
+	justify-content: space-between;
+}
+
+main {
+	text-align: center;
 }

@@ -141,8 +141,8 @@ function Group() {
 
 			if (matchedUsers.length > 0) {
 				matchedUsers.forEach(member => {
-					console.log(`${member.name}: ${member.matched}`)
 					setMatched(member.matched)
+					goToMatch.current.style.display = 'none'
 				})
 			}
 		}
@@ -249,15 +249,13 @@ function Group() {
 								? user.displayName
 								: 'anonymous'}
 						</h2>
-						<button onClick={() => joinGroup(user)}>
-							Присоединиться к группе
-						</button>
-						{groupMembers.map(member =>
-							member.id === user.uid ? (
-								<button key={member.id} onClick={() => removeFromGroup(user)}>
-									выйти
-								</button>
-							) : null
+
+						{groupMembers.some(member => member.id === user.uid) ? (
+							<button onClick={() => removeFromGroup(user)}>Выйти</button>
+						) : (
+							<button onClick={() => joinGroup(user)}>
+								Присоединиться к группе
+							</button>
 						)}
 						<h3>Участники группы:</h3>
 						<ul>
@@ -310,10 +308,10 @@ function Group() {
 					<button onClick={() => start('music')}>Music</button>
 					<button onClick={() => start('busywork')}>Busywork</button>
 				</div>
-				<div>
+				<div style={{ display: matched ? 'none' : 'block' }}>
 					{data ? JSON.stringify(data.activity).replace(/['"]+/g, '') : null}
 				</div>
-				<div ref={goToMatch} style={{ display: 'none' }}>
+				<div ref={goToMatch}>
 					<button onClick={() => matchPlus(user.uid)}>+</button>
 					<button onClick={() => game()}>-</button>
 				</div>

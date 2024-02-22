@@ -25,7 +25,7 @@ function Notification() {
 
 	useEffect(() => {
 		if (user) {
-			const notificationRef = ref(db, 'users/' + user.uid  + '/invite')
+			const notificationRef = ref(db, 'users/' + user.uid + '/invite')
 			onValue(notificationRef, snapshot => {
 				const data = snapshot.val()
 				if (data) {
@@ -57,10 +57,10 @@ function Notification() {
 
 	return (
 		<div>
-			<h1>Notification</h1>
 			{notifications.map((notification, index) =>
 				notification ? (
 					<li key={notification.id || index}>
+						<h1>Notification</h1>
 						{notification.inviteName}{' '}
 						<button onClick={() => decline(user)}>Отклонить</button>
 						<button onClick={() => accept(user, notification.inviteGroup)}>

@@ -14,6 +14,9 @@ function Friend() {
 	const [inviteFrom, setInviteFrom] = useState([])
 	const [inviteTo, setInviteTo] = useState([])
 	const userRef = useRef(null)
+	const friendList = useRef()
+	const friendInviteFrom = useRef()
+	const friendInviteTo = useRef()
 
 	const groupID = GET('id')
 
@@ -34,6 +37,7 @@ function Friend() {
 
 	useEffect(() => {
 		if (user) {
+			switchFriendBtn()
 			const friendRef = ref(db, 'users/' + user.uid + '/friends')
 			const inviteFromRef = ref(db, 'users/' + user.uid + '/inviteFromFriends')
 			const inviteToRef = ref(db, 'users/' + user.uid + '/inviteToFriends')
@@ -106,52 +110,90 @@ function Friend() {
 		})
 	}
 
+	function switchFriendBtn(key) {
+		switch (key) {
+			case 'friendList':
+				friendList.current.style.display = 'block'
+				friendInviteFrom.current.style.display = 'none'
+				friendInviteTo.current.style.display = 'none'
+				break
+			case 'friendInviteFrom':
+				friendInviteFrom.current.style.display = 'block'
+				friendList.current.style.display = 'none'
+				friendInviteTo.current.style.display = 'none'
+				break
+			case 'friendInviteTo':
+				friendInviteTo.current.style.display = 'block'
+				friendList.current.style.display = 'none'
+				friendInviteFrom.current.style.display = 'none'
+				break
+			default:
+				friendList.current.style.display = 'block'
+				friendInviteFrom.current.style.display = 'none'
+				friendInviteTo.current.style.display = 'none'
+				break
+		}
+	}
+
 	return (
 		<div>
 			{user ? (
 				<div>
 					<div>
-						<p>Friend list:</p>
-						{userFriends.map(friend => (
-							<li key={friend.id}>
-								{friend.name}{' '}
-								<button
-									onClick={() =>
-										SendInvite(friend.id, user.displayName, groupID)
-									}
-								>
-									Пригласить
-								</button>
-								<button onClick={() => goToRemoveFriend(user.uid, friend.id)}>
-									Удалить
-								</button>{' '}
-							</li>
-						))}
+						<button onClick={() => switchFriendBtn('friendList')}>
+							Friend list:
+						</button>
+						<button onClick={() => switchFriendBtn('friendInviteFrom')}>
+							inviteFrom:
+						</button>
+						<button onClick={() => switchFriendBtn('friendInviteTo')}>
+							inviteTo:
+						</button>
 					</div>
 					<div>
-						<p>inviteFrom:</p>
-						{inviteFrom.map(friend => (
-							<li key={friend.id}>
-								{friend.name}{' '}
-								<button onClick={() => acceptInvite(friend.id, friend.name)}>
-									Принять
-								</button>
-								<button onClick={() => declineInviteFrom(friend.id)}>
-									Отменить
-								</button>{' '}
-							</li>
-						))}
-					</div>
-					<div>
-						<p>inviteTo:</p>
-						{inviteTo.map(friend => (
-							<li key={friend.id}>
-								{friend.name}{' '}
-								<button onClick={() => declineInviteTo(friend.id)}>
-									Отменить
-								</button>{' '}
-							</li>
-						))}
+						<div ref={friendList}>
+							<p>Friend list:</p>
+							{userFriends.map(friend => (
+								<li key={friend.id}>
+									{friend.name}{' '}
+									<button
+										onClick={() =>
+											SendInvite(friend.id, user.displayName, groupID)
+										}
+									>
+										Пригласить
+									</button>
+									<button onClick={() => goToRemoveFriend(user.uid, friend.id)}>
+										Удалить
+									</button>{' '}
+								</li>
+							))}
+						</div>
+						<div ref={friendInviteFrom}>
+							<p>inviteFrom:</p>
+							{inviteFrom.map(friend => (
+								<li key={friend.id}>
+									{friend.name}{' '}
+									<button onClick={() => acceptInvite(friend.id, friend.name)}>
+										Принять
+									</button>
+									<button onClick={() => declineInviteFrom(friend.id)}>
+										Отменить
+									</button>{' '}
+								</li>
+							))}
+						</div>
+						<div ref={friendInviteTo}>
+							<p>inviteTo:</p>
+							{inviteTo.map(friend => (
+								<li key={friend.id}>
+									{friend.name}{' '}
+									<button onClick={() => declineInviteTo(friend.id)}>
+										Отменить
+									</button>{' '}
+								</li>
+							))}
+						</div>
 					</div>
 				</div>
 			) : null}

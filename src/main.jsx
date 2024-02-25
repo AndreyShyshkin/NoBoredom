@@ -34,6 +34,7 @@ const AppRouter = () => {
 				<div>
 					{user ? (
 						<span>
+							Вы вошли в систему как{' '}
 							{!user.isAnonymous && user.displayName
 								? user.displayName
 								: 'anonymous'}

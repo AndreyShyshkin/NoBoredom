@@ -22,6 +22,10 @@ function Group() {
 	const Start = useRef()
 	const goToMatch = useRef()
 	const startBtn = useRef()
+	const [mouseStartX, setMouseStartX] = useState(null)
+	const [mouseEndX, setMouseEndX] = useState(null)
+	const [touchStartX, setTouchStartX] = useState(null)
+	const [touchEndX, setTouchEndX] = useState(null)
 
 	const groupID = GET('id')
 
@@ -232,6 +236,78 @@ function Group() {
 		}
 	}
 
+	const handleTouchStart = event => {
+		setTouchStartX(event.touches[0].clientX)
+	}
+
+	const handleTouchMove = event => {
+		const touchX = event.touches[0].clientX
+		const plusButtonRect = document
+			.getElementById('plusButton')
+			.getBoundingClientRect()
+		const minusButtonRect = document
+			.getElementById('minusButton')
+			.getBoundingClientRect()
+
+		if (touchX >= plusButtonRect.left && touchX <= plusButtonRect.right) {
+			setTouchEndX(event.touches[0].clientX)
+		} else if (
+			touchX >= minusButtonRect.left &&
+			touchX <= minusButtonRect.right
+		) {
+			setTouchEndX(event.touches[0].clientX)
+		}
+	}
+
+	const handleTouchEnd = event => {
+		if (touchStartX && touchEndX) {
+			const diff = touchEndX - touchStartX
+			if (diff > 0) {
+				console.log('Swipe right')
+			} else if (diff < 0) {
+				console.log('Swipe left')
+			}
+			setTouchStartX(null)
+			setTouchEndX(null)
+		}
+	}
+
+	const handleMouseDown = event => {
+		setMouseStartX(event.clientX)
+	}
+
+	const handleMouseMove = event => {
+		const mouseX = event.clientX
+		const plusButtonRect = document
+			.getElementById('plusButton')
+			.getBoundingClientRect()
+		const minusButtonRect = document
+			.getElementById('minusButton')
+			.getBoundingClientRect()
+
+		if (
+			(mouseStartX &&
+				mouseX >= plusButtonRect.left &&
+				mouseX <= plusButtonRect.right) ||
+			(mouseX >= minusButtonRect.left && mouseX <= minusButtonRect.right)
+		) {
+			setMouseEndX(event.clientX)
+		}
+	}
+
+	const handleMouseUp = () => {
+		if (mouseStartX && mouseEndX) {
+			const diff = mouseEndX - mouseStartX
+			if (diff > 0) {
+				console.log('Swipe right')
+			} else if (diff < 0) {
+				console.log('Swipe left')
+			}
+			setMouseStartX(null)
+			setMouseEndX(null)
+		}
+	}
+
 	return (
 		<div style={{ display: 'flex' }}>
 			<div>
@@ -301,14 +377,41 @@ function Group() {
 						<button onClick={() => start('music')}>Music</button>
 						<button onClick={() => start('busywork')}>Busywork</button>
 					</div>
-					<div ref={goToMatch} style={{ display: matched ? 'none' : 'none' }}>
-						<button onClick={() => matchPlus(user.uid)}>+</button>
-						<p>
+					<div
+						ref={goToMatch}
+						className='swipeable-element'
+						style={{ display: matched ? 'none' : 'none' }}
+						onMouseDown={handleMouseDown}
+						onMouseMove={handleMouseMove}
+						onMouseUp={handleMouseUp}
+						onTouchStart={handleTouchStart}
+						onTouchMove={handleTouchMove}
+						onTouchEnd={handleTouchEnd}
+					>
+						<div>
+							<button
+								className='matchBtn'
+								id='plusButton'
+								onClick={() => matchPlus(user.uid)}
+							>
+								+
+							</button>
+						</div>
+
+						<div>
 							{data
 								? JSON.stringify(data.activity).replace(/['"]+/g, '')
 								: null}
-						</p>
-						<button onClick={() => game()}>-</button>
+						</div>
+						<div>
+							<button
+								className='matchBtn'
+								id='minusButton'
+								onClick={() => game()}
+							>
+								-
+							</button>
+						</div>
 					</div>
 					{matched ? matched.replace(/['"]+/g, '') : null}
 				</div>
